@@ -1,6 +1,10 @@
 # 파이썬 캐시 찌꺼기
 __pycache__/
 *.pyc
+all_in_one_shorts_OpenAiAPIKey.py
+batch_shorts_maker.py
+make_movie_excel.py
+
 
 # 가상환경 및 패키지 폴더 (uv 등)
 .venv/
