@@ -1,0 +1,20 @@
+# 파이썬 캐시 찌꺼기
+__pycache__/
+*.pyc
+
+# 가상환경 및 패키지 폴더 (uv 등)
+.venv/
+venv/
+env/
+build/
+dist/
+outputs/
+temp_batch/
+.git/
+
+# 환경변수 및 비밀키
+.env
+
+# 운영체제 찌꺼기
+.DS_Store
+Thumbs.db
