@@ -6,6 +6,7 @@ requires-python = ">=3.10"
 dependencies = [
     "dotenv>=0.9.9",
     "moviepy>=2.2.1",
+    "pyinstaller>=6.19.0",
     "pyqt5>=5.15.11",
     "pyqt5-qt5==5.15.2",
     "requests>=2.32.5",

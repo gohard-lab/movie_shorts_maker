@@ -43,4 +43,4 @@ YouTube: 잡학다식 개발자 채널 바로가기
 
 상세 작동 원리 및 코딩 과정: 유튜브 영상과 커뮤니티 게시글을 참고해 주세요.
 
-[유튜브 영상](https://youtu.be/3m4AEVO1swg)
+[https://youtu.be/3m4AEVO1swg](https://youtu.be/3m4AEVO1swg)

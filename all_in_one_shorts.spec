@@ -1,16 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import copy_metadata
-
-datas = []
-datas += copy_metadata('imageio')
-datas += copy_metadata('imageio_ffmpeg')
 
 
 a = Analysis(
     ['all_in_one_shorts.py'],
     pathex=[],
     binaries=[],
-    datas=datas,
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
