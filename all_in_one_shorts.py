@@ -11,6 +11,8 @@ import yt_dlp
 
 from dotenv import load_dotenv
 
+from tracker_exe import log_app_usage
+
 # .env 파일을 찾아서 엽니다.
 load_dotenv()
 
@@ -26,6 +28,9 @@ from moviepy import (
     VideoFileClip, CompositeVideoClip, concatenate_videoclips, concatenate_audioclips,
     TextClip, ImageClip, ColorClip
 )
+
+# 📡 화면 오픈 추적 (추가 정보 없이 단순 이벤트만 기록)
+log_app_usage("all_in_one_shorts", "app_opened")
 
 # ==============================================================================
 # [환경 설정] - 이제 OpenAI API 키가 필요 없습니다! 무료로 즐기세요!
@@ -496,6 +501,19 @@ class ShortsApp(QWidget):
         self.btn_action.setText("⏹️ 제작 정지하기")
         self.btn_action.setStyleSheet("font-weight: bold; background-color: #F44336; color: white; font-size: 14px;")
         
+        # ------------------------------------------------------------------------
+        # 1. '검색'인지 '랜덤'인지 텍스트로 확정
+        method_type = '검색' if self.radio_manual.isChecked() else '랜덤'        
+
+        # 2. JSON으로 변환될 details 딕셔너리 생성
+        tracking_details = {
+            "method": method_type,
+            "movie_title": self.current_movie_info['title']
+        }
+        # 3. 📡 쇼츠 생성 이벤트 및 상세 정보 기록
+        log_app_usage("all_in_one_shorts", "shorts_created", tracking_details)
+        # ------------------------------------------------------------------------
+ 
         self.log("=========================================")
         self.log(f"🚀 [{self.current_movie_info['title']}] 숏츠 제작 시작!")
         self.pbar.setRange(0, 100)

@@ -1,11 +1,14 @@
 [project]
-name = "movie-shorts_maker"
+name = "movie_shorts_maker"
 version = "0.1.0"
+requires-python = ">=3.10"
+
 dependencies = [
     "dotenv>=0.9.9",
     "moviepy>=2.2.1",
     "pyqt5>=5.15.11",
     "pyqt5-qt5==5.15.2",
     "requests>=2.32.5",
+    "supabase>=2.28.2",
     "yt-dlp>=2026.3.3",
 ]
