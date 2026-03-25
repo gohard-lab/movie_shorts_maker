@@ -1,16 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import copy_metadata
+
+datas = []
+datas += copy_metadata('imageio')
 
 
 a = Analysis(
     ['all_in_one_shorts.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=datas,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['tkinter', 'IPython', 'notebook'],
     noarchive=False,
     optimize=0,
 )
