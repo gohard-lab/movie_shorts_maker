@@ -8,10 +8,11 @@ import shutil
 import gc
 import ctypes
 import yt_dlp
-
-from dotenv import load_dotenv
-
+# import tkinter as tk
+import webbrowser
+from PyQt5.QtWidgets import QApplication, QMessageBox  # 사용 중인 버전에 맞게 수정 (PyQt5 / PySide6 등)
 from tracker_exe import log_app_usage
+from dotenv import load_dotenv
 
 # .env 파일을 찾아서 엽니다.
 load_dotenv()
@@ -30,7 +31,7 @@ from moviepy import (
 )
 
 # 📡 화면 오픈 추적 (추가 정보 없이 단순 이벤트만 기록)
-log_app_usage("all_in_one_shorts", "app_opened")
+log_app_usage("movie_shorts_maker", "app_opened")
 
 # ==============================================================================
 # [환경 설정] - 이제 OpenAI API 키가 필요 없습니다! 무료로 즐기세요!
@@ -511,7 +512,7 @@ class ShortsApp(QWidget):
             "movie_title": self.current_movie_info['title']
         }
         # 3. 📡 쇼츠 생성 이벤트 및 상세 정보 기록
-        log_app_usage("all_in_one_shorts", "shorts_created", tracking_details)
+        log_app_usage("movie_shorts_maker", "shorts_created", tracking_details)
         # ------------------------------------------------------------------------
  
         self.log("=========================================")
@@ -546,7 +547,9 @@ class ShortsApp(QWidget):
         self.log("=========================================")
         
         result, time_str = result_data.split("|")
-        
+                
+        show_star_popup()
+
         if result == "성공":
             QMessageBox.information(self, "작업 완료", f"🎉 무료 숏츠 영상이 성공적으로 생성되었습니다!\n\n⏱️ 소요 시간: {time_str}\n📁 outputs 폴더를 확인하세요.")
         elif result == "중지됨":
@@ -555,8 +558,37 @@ class ShortsApp(QWidget):
         else:
             QMessageBox.warning(self, "실패", "영상 생성 중 문제가 발생했습니다. 로그를 확인하세요.")
 
+def show_star_popup(parent):
+    # 트래커 기록 (화면 노출)
+    log_app_usage("polymath_app_exe", "star_prompt_displayed", details={"ui": "pyqt_msgbox"})
+    
+    msg = QMessageBox(parent)
+    msg.setWindowTitle("⭐ Support Polymath Developer")
+    
+    # 체리피커 양심 자극 문구 (한/영)
+    msg.setText(
+        "💡 유용하게 사용하셨나요? 소스코드만 날름 가져가는 분들이 많습니다.\n"
+        "개발자의 땀과 노력에 대한 최소한의 예의로 깃허브 Star⭐를 부탁드립니다!\n\n"
+        "Did you find this useful? Please show some basic courtesy\n"
+        "for the developer's hard work by leaving a GitHub Star⭐."
+    )
+    
+    star_btn = msg.addButton("👉 깃허브로 이동하여 Star 누르기", QMessageBox.ActionRole)
+    # msg.addButton("닫기", QMessageBox.RejectRole)
+    
+    msg.exec_()
+    
+    if msg.clickedButton() == star_btn:
+        # 트래커 기록 (버튼 클릭)
+        log_app_usage("movie_shorts_maker", "github_star_clicked", details={"ui": "pyqt_msgbox_btn"})
+        webbrowser.open("https://github.com/gohard-lab/movie_shorts_maker") # 레포지토리 이름만 수정해주세요
+
+
+
 if __name__ == '__main__':
+    # show_star_popup()
     app = QApplication(sys.argv)
     ex = ShortsApp()
-    ex.show()
+    ex.show()    
+    show_star_popup(ex)
     sys.exit(app.exec_())
