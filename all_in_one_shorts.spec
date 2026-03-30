@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import copy_metadata
 
-datas = []
+datas = [('.env', '.')]
 datas += copy_metadata('imageio')
 
 

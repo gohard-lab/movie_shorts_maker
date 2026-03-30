@@ -1,1 +1,1 @@
-uv run pyinstaller --onefile --windowed --copy-metadata imageio --exclude-module tkinter --exclude-module IPython --exclude-module notebook all_in_one_shorts.py
+uv run pyinstaller --onefile --windowed --add-data ".env;." --copy-metadata imageio --exclude-module tkinter --exclude-module IPython --exclude-module notebook all_in_one_shorts.py ; [System.Console]::Beep(400, 500)

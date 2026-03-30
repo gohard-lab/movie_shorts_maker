@@ -14,8 +14,15 @@ from PyQt5.QtWidgets import QApplication, QMessageBox  # 사용 중인 버전에
 from tracker_exe import log_app_usage
 from dotenv import load_dotenv
 
-# .env 파일을 찾아서 엽니다.
-load_dotenv()
+def resource_path(relative_path):
+    """exe로 빌드되었을 때 임시 폴더(_MEIPASS) 안의 경로를 찾아주는 함수"""
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+load_dotenv(resource_path('.env'))
 
 # 금고 안에서 TMDB_API_KEY 라는 이름표가 붙은 진짜 키를 꺼내옵니다.
 tmdb_key = os.environ.get("TMDB_API_KEY")
