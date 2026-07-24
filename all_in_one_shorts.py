@@ -119,6 +119,9 @@ class KoreanLineEdit(QLineEdit):
 # ==============================================================================
 # [로직] 메인 렌더링 스레드 (100% 무료 버전)
 # ==============================================================================
+# ==============================================================================
+# [로직] 메인 렌더링 스레드 (클립 자원 해제 보완 버전)
+# ==============================================================================
 class VideoMakerThread(QThread):
     log_signal = pyqtSignal(str)
     progress_signal = pyqtSignal(int)
@@ -137,12 +140,15 @@ class VideoMakerThread(QThread):
 
     def check_stop(self):
         if not self._is_running:
-            self.log("🧹 내부 임시 파일을 안전하게 삭제하고 있습니다...")
+            self.log("🧹 내부 임시 파일 및 미디어 자원을 안전하게 삭제하고 있습니다...")
             return True
         return False
 
     def run(self):
         start_time = time.time()
+        # [추가] 생성된 모든 MoviePy 클립 객체를 추적하여 안전하게 해제하기 위한 리스트
+        allocated_clips = []
+
         try:
             if os.path.exists(TEMP_FOLDER):
                 shutil.rmtree(TEMP_FOLDER, ignore_errors=True)
@@ -181,7 +187,7 @@ class VideoMakerThread(QThread):
                                             ydl_down.download([entry['url']])
                                         downloaded_videos.append(out_path)
                                         self.log(f"   ✅ 영상 소스 {vid_idx} 확보 완료!")
-                                        break # 하나 성공하면 다음 검색어로
+                                        break
                                     except: continue
                 except: pass
 
@@ -192,7 +198,10 @@ class VideoMakerThread(QThread):
             imgs = []
             img_files = download_images(self.movie_info['id'], self.movie_info['media_type'])
             for p in img_files:
-                try: imgs.append(ImageClip(p))
+                try:
+                    ic = ImageClip(p)
+                    imgs.append(ic)
+                    allocated_clips.append(ic) # 자원 해제 추적에 등록
                 except: pass
 
             if self.check_stop(): self.finish_signal.emit("중지됨|0"); return
@@ -202,28 +211,34 @@ class VideoMakerThread(QThread):
             self.log("✂️ 수집된 소스들을 역동적으로 교차 편집합니다...")
             
             vid_clips = []
-            master_audio = None # 예고편 오디오를 숏츠 배경음악으로 사용!
+            master_audio = None
 
             for v_path in downloaded_videos:
                 if os.path.exists(v_path):
                     try: 
                         c = VideoFileClip(v_path)
+                        allocated_clips.append(c) # 원본 비디오 클립 추적
                         if c.duration >= 3.0:
                             if master_audio is None and c.audio is not None:
-                                master_audio = c.audio # 첫 번째 영상의 오디오를 마스터로 씁니다.
-                            vid_clips.append(c.without_audio())
+                                master_audio = c.audio
+                                allocated_clips.append(master_audio)
+                            
+                            sub_v = c.without_audio()
+                            vid_clips.append(sub_v)
+                            allocated_clips.append(sub_v)
                     except: pass
 
             visual_clips = []
             current_dur = 0.0
             
-            # 교차 편집 로직 (사진 3초 -> 영상 4초)
+            # 교차 편집 로직
             if vid_clips and imgs:
                 while current_dur < SHORTS_DURATION:
                     img = random.choice(imgs)
                     zoom = (lambda t: 1+0.02*t) if random.random() > 0.5 else (lambda t: 1.05-0.02*t)
                     ic = img.with_duration(3.0).resized(width=TARGET_WIDTH).resized(zoom)
                     visual_clips.append(ic)
+                    allocated_clips.append(ic)
                     current_dur += 3.0
                     
                     if current_dur >= SHORTS_DURATION: break
@@ -234,6 +249,7 @@ class VideoMakerThread(QThread):
                     end_t = min(start_t + 4.0, vc_source.duration)
                     vc = vc_source.subclipped(start_t, end_t).resized(width=TARGET_WIDTH)
                     visual_clips.append(vc)
+                    allocated_clips.append(vc)
                     current_dur += (end_t - start_t)
 
             elif vid_clips:
@@ -244,6 +260,7 @@ class VideoMakerThread(QThread):
                     end_t = min(start_t + 5.0, vc_source.duration)
                     vc = vc_source.subclipped(start_t, end_t).resized(width=TARGET_WIDTH)
                     visual_clips.append(vc)
+                    allocated_clips.append(vc)
                     current_dur += (end_t - start_t)
             elif imgs:
                 clip_dur = max(SHORTS_DURATION / len(imgs), 3.0)
@@ -253,12 +270,15 @@ class VideoMakerThread(QThread):
                         zoom = (lambda t: 1+0.03*t) if random.random() > 0.5 else (lambda t: 1.05-0.03*t)
                         ic = img.with_duration(clip_dur).resized(width=TARGET_WIDTH).resized(zoom)
                         visual_clips.append(ic)
+                        allocated_clips.append(ic)
                         current_dur += clip_dur
             else:
-                visual_clips.append(ColorClip(size=(TARGET_WIDTH, TARGET_HEIGHT), color=(0,0,0)).with_duration(SHORTS_DURATION))
+                blank = ColorClip(size=(TARGET_WIDTH, TARGET_HEIGHT), color=(0,0,0)).with_duration(SHORTS_DURATION)
+                visual_clips.append(blank)
+                allocated_clips.append(blank)
 
-            # 클립 이어붙이기
             raw_stream = concatenate_videoclips(visual_clips, method="compose").subclipped(0, SHORTS_DURATION)
+            allocated_clips.append(raw_stream)
 
             # 앰비언트 배경 덧씌우기
             bg_full = raw_stream.resized(height=TARGET_HEIGHT).cropped(
@@ -267,6 +287,7 @@ class VideoMakerThread(QThread):
             dark_overlay = ColorClip(size=(TARGET_WIDTH, TARGET_HEIGHT), color=(0,0,0)).with_duration(SHORTS_DURATION).with_opacity(0.8)
             center_video = raw_stream.with_position('center')
             
+            allocated_clips.extend([bg_full, dark_overlay, center_video])
             visual_layers = [bg_full, dark_overlay, center_video]
 
             if self.check_stop(): self.finish_signal.emit("중지됨|0"); return
@@ -274,25 +295,28 @@ class VideoMakerThread(QThread):
             # 3. 텍스트 레이어 합성
             self.progress_signal.emit(70)
             
-            # 상단 제목 (에러 방지용 \n 포함)
             title_text = TextClip(text=f"{title}\n", font=FONT_PATH, font_size=60, color='yellow', stroke_color='black', stroke_width=2, method='label')
             title_clip = title_text.with_position(('center', 250)).with_duration(SHORTS_DURATION)
-            visual_layers.append(title_clip)
-
-            # 하단 고정 어그로 자막 (무료 버전의 핵심 포인트)
+            
             bottom_text = TextClip(text="🔥 화제의 명작!\n지금 바로 확인하세요\n", font=FONT_PATH, font_size=45, color='white', stroke_color='black', stroke_width=2, method='label', text_align='center')
             bottom_clip = bottom_text.with_position(('center', TARGET_HEIGHT - 350)).with_duration(SHORTS_DURATION)
-            visual_layers.append(bottom_clip)
+            
+            allocated_clips.extend([title_text, title_clip, bottom_text, bottom_clip])
+            visual_layers.extend([title_clip, bottom_clip])
 
             # 4. 오디오 길이 맞추기 및 최종 합성
             final_video = CompositeVideoClip(visual_layers, size=(TARGET_WIDTH, TARGET_HEIGHT))
+            allocated_clips.append(final_video)
             
             if master_audio is not None:
                 if master_audio.duration < SHORTS_DURATION:
                     loops = int(SHORTS_DURATION / master_audio.duration) + 1
-                    master_audio = concatenate_audioclips([master_audio] * loops)
-                master_audio = master_audio.subclipped(0, SHORTS_DURATION)
-                final_video = final_video.with_audio(master_audio)
+                    looped_audio = concatenate_audioclips([master_audio] * loops)
+                    allocated_clips.append(looped_audio)
+                    master_audio = looped_audio
+                final_audio = master_audio.subclipped(0, SHORTS_DURATION)
+                allocated_clips.append(final_audio)
+                final_video = final_video.with_audio(final_audio)
 
             if self.check_stop(): self.finish_signal.emit("중지됨|0"); return
 
@@ -332,6 +356,15 @@ class VideoMakerThread(QThread):
             self.log(f"❌ 에러 발생: {e}")
             self.finish_signal.emit("실패|0")
         finally:
+            # [추가] 생성된 모든 클립 객체에 대해 명시적 close() 호출하여 FFmpeg C 메모리 해제
+            self.log("🧹 메모리 내 클립 자원 및 C 백엔드 리소스 해제 중...")
+            for clip in allocated_clips:
+                try:
+                    if hasattr(clip, 'close'):
+                        clip.close()
+                except Exception:
+                    pass
+
             if os.path.exists(TEMP_FOLDER): shutil.rmtree(TEMP_FOLDER, ignore_errors=True); time.sleep(0.5)
             gc.collect()
 
